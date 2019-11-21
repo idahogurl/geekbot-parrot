@@ -1,6 +1,10 @@
 const request = require('request-promise-native');
 const { zonedTimeToUtc } = require('date-fns-tz');
-const GITHUB_TOKEN = '6531dd4c75165ab37ac525ddbeab5bcbb09b1179';
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const { GITHUB_TOKEN } = process.env.GITHUB_TOKEN;
 const API_URL = 'https://api.github.com';
 
 function gitHubRequest(endPoint) {

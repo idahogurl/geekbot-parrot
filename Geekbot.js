@@ -9,7 +9,6 @@ class Geekbot {
 
     this.githubActivity = new GithubActivity(username, organizations);
     this.beforeDate = chrono.parseDate(beforeDateText);
-    this.repoNames = new Set();
   }
 
   getWhatDidYouDo(separator = '\n') {
@@ -27,17 +26,10 @@ class Geekbot {
     return !!this.githubActivity.getRepoName(activity);
   }
 
-  addRepoName(activity) {
-    const repoName = this.githubActivity.getRepoName(activity);
-    if (this.repoNames.has(repoName)) return;
-    this.repoNames.add(repoName);
-  }
-
   async outputActivities({ filterDate, separator = ', ' }) {
     const activities = await this.githubActivity.filter(filterDate);
 
     const texts = await Promise.all(activities.map(async a => {
-      this.addRepoName(a);
       const activityText = await this.activityToText(a);
       return activityText;
     }));

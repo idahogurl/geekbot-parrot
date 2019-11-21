@@ -4,7 +4,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const { GITHUB_TOKEN } = process.env.GITHUB_TOKEN;
+const { GITHUB_TOKEN } = process.env;
 const API_URL = 'https://api.github.com';
 
 function gitHubRequest(endPoint) {

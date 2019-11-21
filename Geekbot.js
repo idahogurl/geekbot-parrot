@@ -1,118 +1,88 @@
-const faker = require('faker')
-const chrono = require('chrono-node')
-const GithubActivity = require('./GithubActivity')
-const utils = require('./utils')
+const chrono = require('chrono-node');
+const GithubActivity = require('./GithubActivity');
+const { last } = require('lodash');
+
 
 class Geekbot {
   constructor(username, organizations = [], beforeDateText) {
-    organizations = organizations.filter(orgName => !!orgName)
+    organizations = organizations.filter(orgName => !!orgName);
 
-    this.githubActivity = new GithubActivity(username, organizations)
-    this.beforeDateText = beforeDateText
-    this.activities = []
+    this.githubActivity = new GithubActivity(username, organizations);
+    this.beforeDate = chrono.parseDate(beforeDateText);
+    this.repoNames = new Set();
   }
 
-  getHowDoYouFeel() {
-    this.resetCache()
-    const howDowYouFeel = faker.commerce.productAdjective()
-    return utils.capitalize(howDowYouFeel)
+  getWhatDidYouDo(separator = '\n') {
+    return this.outputActivities({ filterDate: this.beforeDate,
+      separator });
   }
 
-  async getWhatDidYouDo(separator = '\n') {
-    let text = 'nope'
-    if (await this.hasActivities()) {
-      text = await this.activitiesToText(separator)
-    }
-    return text
-  }
-
-  async getWhatWillYouDo() {
-    const activities = await this.getActivities()
-    if (activities.length === 0) return 'nope'
-
-    let repoNames = activities.map(activity =>
-      this.githubActivity.getRepoName(activity)
-    )
-    repoNames = Array.from(new Set(repoNames))
-
-    const reposText =
-      repoNames.length > 1
-        ? `${repoNames.slice(0, -1).join(', ')} and ${repoNames.slice(-1)[0]}`
-        : repoNames[0]
-
-    return `Probably more work on ${reposText}`
-  }
-
-  getBlocking() {
-    this.resetCache()
-    return utils.capitalize(faker.hacker.phrase())
-  }
-
-  async getActivities() {
-    if (this.activities.length === 0) {
-      const beforeDate = chrono.parseDate(this.beforeDateText, new Date())
-      const activities = await this.githubActivity.filter(beforeDate)
-
-      for (const activity of activities) {
-        if (this.inOrganizations(activity)) {
-          this.activities.push(activity)
-        }
-      }
-    }
-
-    return this.activities
-  }
-
-  async hasActivities() {
-    return (await this.getActivities()).length > 0
+  getWhatWillYouDo(separator = '\n') {
+    const nextDay = new Date(this.beforeDate.getTime() + 24 * 60 * 60 * 1000);
+    return this.outputActivities({ filterDate: nextDay,
+      separator });
   }
 
   inOrganizations(activity) {
-    return !!this.githubActivity.getRepoName(activity)
+    return !!this.githubActivity.getRepoName(activity);
   }
 
-  async activitiesToText(separator = ', ') {
-    const activities = await this.getActivities()
-    const repoNames = new Set()
-    let texts = []
-
-    for (const activity of activities) {
-      const repoName = this.githubActivity.getRepoName(activity)
-      if (repoNames.has(repoName)) continue
-
-      const activityText = this.activityToText(activity)
-      if (!activityText) continue
-
-      repoNames.add(repoName)
-      texts.push(activityText)
-    }
-
-    return texts.join(separator)
+  addRepoName(activity) {
+    const repoName = this.githubActivity.getRepoName(activity);
+    if (this.repoNames.has(repoName)) return;
+    this.repoNames.add(repoName);
   }
 
-  activityToText(activity) {
-    const repoName = this.githubActivity.getRepoName(activity)
-    if (!repoName) return ''
+  async outputActivities({ filterDate, separator = ', ' }) {
+    const activities = await this.githubActivity.filter(filterDate);
 
-    switch (activity.type) {
+    const texts = await Promise.all(activities.map(async a => {
+      this.addRepoName(a);
+      const activityText = await this.activityToText(a);
+      return activityText;
+    }));
+
+    return texts.filter(t => t).join(separator);
+  }
+
+  async branchEventToText({ repoName, refName }) {
+      const issueNumber = last(refName.split('-'));
+      const issueName = await this.githubActivity.getIssueName({
+        repoName,
+        'issueNumber': last(refName.split('-'))
+      });
+    if (!issueName) return `Branch ${refName} on ${repoName}`;
+    return `Issue ${repoName}#${issueNumber} - ${issueName}`;
+  }
+
+   activityToText(activity) {
+    const { 'name': repoName } = this.githubActivity.getRepoName(activity);
+    if (!repoName) return '';
+    const { payload, type } = activity;
+    const { 'ref': refName, 'ref_type': refType } = payload;
+
+    switch (type) {
+      case 'PushEvent':
       case 'CreateEvent': {
-        const description = activity.description
-          ? ` (${activity.description})`
-          : ''
-        const verb = activity.ref_type === 'repository' ? 'Created' : 'Worked on'
-
-        return `${verb} ${repoName}${description}`
+        if (refType === 'branch') {
+          return this.branchEventToText({ repoName,
+            refName });
+        }
+        return '';
       }
-      case 'WatchEvent':
-        return ''
+      case 'PullRequestEvent': {
+        const { number, 'pull_request': pullRequest } = payload;
+        return `PR ${repoName}#${number} - ${pullRequest.title}`;
+      }
       default:
-        return `Worked on ${repoName}`
+        return '';
     }
   }
 
+ 
   resetCache() {
-    this.activities = []
+    this.activities = [];
   }
 }
 
-module.exports = Geekbot
+module.exports = Geekbot;

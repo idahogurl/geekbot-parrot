@@ -4,7 +4,8 @@
   "description": "Answer the geekbot bot automatically with Github data",
   "main": "index.js",
   "scripts": {
-    "start": "yarn nodemon index --user idahogurl"
+    "start": "node index --user idahogurl",
+    "dev": "yarn nodemon index --user idahogurl"
   },
   "dependencies": {
     "arg": "^2.0.0",

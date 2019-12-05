@@ -1,66 +1,47 @@
+
 # [geekbot](https://geekbot.io/) parrot
 
-Tired of answering geekbot standups manually?<br/>
-Run this script and answer it with your github activity.
+
+Tired of having to remember and manually enter what you did yesterday for Geekbot standups?Run this script and to list your GitHub activity that you can copy/paste into Slack.
+
+
+## Installation
+1. git clone geekbot-parrot repository
+2. npm install or yarn install
+3. Create a GitHub [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) with `repo` scope
+4. Copy the generated personal access token
+4. Create `.env` file in your `geekbot-parrot` directory
+5. Paste personal access token into your `.env` file
+6. Type `GITHUB_TOKEN=` before your personal access token
 
 ## Run
 
+### With NPX
+
 ```bash
-git clone (...)
-npm install
-node index.js --help
+$ npx geekbot-parrot --user [GitHub Username]
+```
+### With Yarn
+```bash
+$ yarn geekbot-parrot --user [GitHub Username]
 ```
 
-to see the options. You'll need a [Slack token](https://api.slack.com/custom-integrations/legacy-tokens)
+### With Package Script
+1. Open package.json 
+2. Under `scripts` locate the `start` script
+3. Modify the script to run using `npx` if desired
+4. Replace the value of the `user` argument with your GitHub username
+4. Run the script using either `npx start` or  `yarn start`
 
-### Example:
+### Example
 
 ```
-➜  geekbot git:(master) ✗
-SLACK_TOKEN=xoxp-123123123-123123123-123123123-dadvnx2190312 node index.js --user NicoSantangelo
+node index.js --user idahogurl
 
-How do you feel today?
-  Awesome
 What did you do yesterday?
-  Worked on marketplace
-  Worked on agora
-  Worked on decentraland-eth
+  PR idahogurl/geekbot-parrot#4 - Update README
+  Issue idahogurl/geekbot-parrot#5 - List assigned issues for 'today' output
+
 What will you do today?
-  Probably more work on marketplace, land, decentraland-eth, agora and decentraland-tetromino
-Anything blocking your progress?
-  The THX circuit is down, quantify the back-end firewall so we can reboot the PNG hard drive!
+  Issue idahogurl/geekbot-parrot#5 - List assigned issues for 'today' output
 ```
-
-### Respond automatically (upon request, using RTM):
-
-```
-➜  geekbot git:(master) ✗
-SLACK_TOKEN=xoxp-123123123-123123123-123123123-dadvnx2190312 node index.js --user NicoSantangelo --watch
-```
-
-## Changing the responses
-
-If you don't like the the script output you can clone and change the following functions on `Geekbot.js`:
-
-```javascript
-getHowDoYouFeel()
-getWhatDidYouDo(separator = '\n')
-getWhatWillYouDo()
-getBlocking()
-```
-
-## With NPM
-
-```bash
-$ npm i -g geekbot-parrot
-$ geekbot-parrot xoxp-123123123-123123123-123123123-dadvnx2190312 --user NicoSantangelo
-```
-
-or via NPX
-
-```bash
-$ npx geekbot-parrot xoxp-123123123-123123123-123123123-dadvnx2190312 --user NicoSantangelo
-```
-
-:golfing_man:
-

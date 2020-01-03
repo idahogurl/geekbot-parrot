@@ -29,7 +29,7 @@ separator });
   async outputActivities({ filterDate, separator = ', ' }) {
     const activities = await this.githubActivity.filter(filterDate);
     const texts = await Promise.all(
-      activities.map(a => (this.activityToText(a)))
+      activities.map(a => this.activityToText(a))
     );
 
     return texts.filter(t => t).join(separator);
@@ -55,14 +55,18 @@ separator });
       case 'PushEvent':
       case 'CreateEvent': {
         if (refType === 'branch') {
-          return this.branchEventToText({ repoName, refName });
+          return this.branchEventToText({ repoName,
+refName });
         }
         return '';
       }
+      case 'PullRequestReviewEvent':
       case 'PullRequestReviewCommentEvent':
       case 'PullRequestEvent': {
         const { pull_request: pullRequest } = payload;
-        return `PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
+        return `${
+          type === 'PullRequestReviewCommentEvent' ? 'Reviewed ' : ''
+        }PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
       }
       default:
         return '';

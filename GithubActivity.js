@@ -1,5 +1,4 @@
 const request = require('request-promise-native');
-const { zonedTimeToUtc } = require('date-fns-tz');
 const dotenv = require('dotenv');
 
 dotenv.config();

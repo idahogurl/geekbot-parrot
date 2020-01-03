@@ -12,9 +12,9 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}/index.js",
-            "flags": [
-                "--user idahogurl"
-            ]
+            "env": {
+                "DEBUG": "true"
+            }
         }
     ]
 }

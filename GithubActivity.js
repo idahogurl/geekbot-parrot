@@ -4,19 +4,22 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// eslint-disable-next-line no-process-env
 const { GITHUB_TOKEN } = process.env;
 const API_URL = 'https://api.github.com';
 
 function gitHubRequest(endPoint) {
   return request({
-    'url': `${API_URL}/${endPoint}`,
-    'qs': {
-      'access_token': GITHUB_TOKEN
+    url: `${API_URL}/${endPoint}`,
+    qs: {
+      // eslint-disable-next-line camelcase
+      per_page: 100
     },
-    'headers': {
-      'User-Agent': 'Geekbot fill'
+    headers: {
+      'User-Agent': 'Geekbot fill',
+      Authorization: `token ${GITHUB_TOKEN}`
     },
-    'json': true
+    json: true
   });
 }
 
@@ -33,17 +36,15 @@ class GithubActivity {
   async filter(filterDate) {
     const dateString = filterDate.toDateString();
     const activities = await gitHubRequest(`users/${this.username}/events`);
-    return activities.filter(
-      activity =>
-        zonedTimeToUtc(activity.created_at, 'Europe/London').toDateString() === dateString);
+    return activities.filter(activity => (new Date(activity.created_at).toDateString() === dateString));
   }
 
   getRepoName(activity) {
     if (!activity) {
       return '';
-    } 
-    const { 'repo': name } = activity;
-    
+    }
+    const { repo: name } = activity;
+
     return this.sanitizeRepoName(name);
   }
 
@@ -52,20 +53,22 @@ class GithubActivity {
       return '';
     }
     try {
-      const issue = await gitHubRequest(`repos/${repoName}/issues/${issueNumber}`);
+      const issue = await gitHubRequest(
+        `repos/${repoName}/issues/${issueNumber}`
+      );
       return issue.title;
     } catch (e) {
       return '';
     }
   }
 
-  sanitizeRepoName(name) {
+  sanitizeRepoName({ name }) {
     if (this.organizations.length === 0) {
       return name;
     }
     for (const orgName of this.organizations) {
       const orgPrefix = `${orgName}/`;
-      const hasOrg = name.search(orgPrefix) !== -1;
+      const hasOrg = name.indexOf(orgPrefix) === 0;
       if (hasOrg) {
         return name.replace(orgPrefix, '');
       }

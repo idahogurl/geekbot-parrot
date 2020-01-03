@@ -2,14 +2,14 @@ const arg = require('arg');
 const chalk = require('chalk');
 const Geekbot = require('./Geekbot');
 
-
 async function outputActivity(geekbot) {
-    // prettier-ignore
-    console.log(`
+  const yesterday = await geekbot.getWhatDidYouDo('\n  ');
+  const today = await geekbot.getWhatWillYouDo();
+  console.log(`
 ${chalk.bold.white('What did you do yesterday?')}
-  ${await geekbot.getWhatDidYouDo('\n  ')}
+  ${yesterday}
 ${chalk.bold.white('What will you do today?')}
-  ${await geekbot.getWhatWillYouDo()}
+  ${today}
 ${chalk.bold.white('Anything blocking your progress?')}`);
 }
 
@@ -23,7 +23,7 @@ async function run(args) {
   await outputActivity(geekbot);
 }
 
-async function main() {
+function main() {
   let args = {};
 
   try {
@@ -41,7 +41,12 @@ async function main() {
     '--from': 'yesterday',
     ...args
   };
-  args['--user'] = 'idahogurl';
+  
+  if (process.env.DEBUG) {
+    args["--user"] = 'idahogurl';
+    args["--organizations"] = 'healthline';
+  }
+
   if (!args['--user'] || args['--help']) {
     console.log(`
       ${chalk.bold.white('Flags')}:
@@ -58,9 +63,8 @@ async function main() {
     return process.exit();
   }
 
-  await run(args);
+  return run(args);
 }
-
 
 main().catch(error =>
   console.error('An error ocurred trying to send the standup\n', error)

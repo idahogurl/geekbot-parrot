@@ -1,6 +1,5 @@
 const chrono = require('chrono-node');
 const GithubActivity = require('./GithubActivity');
-const { last } = require('lodash');
 
 class Geekbot {
   constructor(username, organizations = [], beforeDateText) {
@@ -48,9 +47,9 @@ separator });
     }
 
     if (pullRequest) {
-      return `[${state}] ${repoName}#${number} - ${title}`;
+      return `*[${state}]* PR ${repoName}#${number} - ${title}`;
     }
-    return `[${state}] ${repoName}#${number} - ${title}`;
+    return `*[${state}]* ${repoName}#${number} - ${title}`;
   }
 
   itemToText(item) {
@@ -74,14 +73,14 @@ separator });
       case 'PushEvent':
       case 'CreateEvent': {
         if (refType === 'branch') {
-          return `[created] Branch ${refName} on ${repoName}`;
+          return `*[created]* Branch ${refName} on ${repoName}`;
         }
         return '';
       }
 
       case 'PullRequestReviewCommentEvent': {
         const { pull_request: pullRequest } = payload;
-        return `[reviewed] PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
+        return `*[reviewed]* PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
       }
       default:
         return '';

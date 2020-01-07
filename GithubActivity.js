@@ -35,30 +35,30 @@ class GithubActivity {
   async filter(filterDate) {
     const dateString = filterDate.toDateString();
     const activities = await gitHubRequest(`users/${this.username}/events`);
-    return activities.filter(activity => (new Date(activity.created_at).toDateString() === dateString));
-  }
+    const issues = await gitHubRequest(
+      `search/issues?q=author:${this.username}`
+    );
 
-  getRepoName(activity) {
-    if (!activity) {
-      return '';
-    }
-    const { repo: name } = activity;
-
-    return this.sanitizeRepoName(name);
-  }
-
-  async getIssueName({ repoName, issueNumber }) {
-    if (!issueNumber) {
-      return '';
-    }
-    try {
-      const issue = await gitHubRequest(
-        `repos/${repoName}/issues/${issueNumber}`
+    // title, user.login, number
+    return activities.
+      filter(
+        activity => new Date(activity.created_at).toDateString() === dateString
+      ).
+      concat(
+        issues.items.filter(
+          i =>
+            i.state === 'open' ||
+            new Date(i.closed_at).toDateString() === dateString
+        )
       );
-      return issue.title;
-    } catch (e) {
-      return '';
-    }
+  }
+
+  getRepoName(url) {
+    const repoUrlParts = url.split('/');
+    const repoName = repoUrlParts.pop();
+    const ownerName = repoUrlParts.pop();
+
+    return this.sanitizeRepoName({ name: `${ownerName}/${repoName}` });
   }
 
   sanitizeRepoName({ name }) {
@@ -69,7 +69,7 @@ class GithubActivity {
       const orgPrefix = `${orgName}/`;
       const hasOrg = name.indexOf(orgPrefix) === 0;
       if (hasOrg) {
-        return name.replace(orgPrefix, '');
+        return name;
       }
     }
     return '';

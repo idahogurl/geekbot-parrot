@@ -27,46 +27,61 @@ separator });
   }
 
   async outputActivities({ filterDate, separator = ', ' }) {
-    const activities = await this.githubActivity.filter(filterDate);
-    const texts = await Promise.all(
-      activities.map(a => this.activityToText(a))
-    );
+    const items = await this.githubActivity.filter(filterDate);
+    const texts = await Promise.all(items.map(i => this.itemToText(i)));
 
     return texts.filter(t => t).join(separator);
   }
 
-  async branchEventToText({ repoName, refName }) {
-    const issueNumber = last(refName.split('-'));
-    const issueName = await this.githubActivity.getIssueName({
-      repoName,
-      issueNumber: last(refName.split('-'))
-    });
-    if (!issueName) return `Branch ${refName} on ${repoName}`;
-    return `Issue ${repoName}#${issueNumber} - ${issueName}`;
+  issueToText(issue) {
+    // issue or pr
+    const {
+      pull_request: pullRequest,
+      state,
+      title,
+      number,
+      repository_url: repoUrl
+    } = issue;
+    const repoName = this.githubActivity.getRepoName(repoUrl);
+    if (!repoName) {
+      return '';
+    }
+
+    if (pullRequest) {
+      return `[${state}] ${repoName}#${number} - ${title}`;
+    }
+    return `[${state}] ${repoName}#${number} - ${title}`;
   }
 
-  async activityToText(activity) {
-    const repoName = this.githubActivity.getRepoName(activity);
+  itemToText(item) {
+    if (item.payload) {
+      return this.activityToText(item);
+    }
+    return this.issueToText(item);
+  }
+
+  activityToText(activity) {
+    const {
+      payload,
+      type,
+      repo: { name }
+    } = activity;
+    const repoName = this.githubActivity.getRepoName(name);
     if (!repoName) return '';
-    const { payload, type } = activity;
     const { ref: refName, ref_type: refType } = payload;
 
     switch (type) {
       case 'PushEvent':
       case 'CreateEvent': {
         if (refType === 'branch') {
-          return this.branchEventToText({ repoName,
-refName });
+          return `[created] Branch ${refName} on ${repoName}`;
         }
         return '';
       }
-      case 'PullRequestReviewEvent':
-      case 'PullRequestReviewCommentEvent':
-      case 'PullRequestEvent': {
+
+      case 'PullRequestReviewCommentEvent': {
         const { pull_request: pullRequest } = payload;
-        return `${
-          type === 'PullRequestReviewCommentEvent' ? 'Reviewed ' : ''
-        }PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
+        return `[reviewed] PR ${repoName}#${pullRequest.number} - ${pullRequest.title}`;
       }
       default:
         return '';

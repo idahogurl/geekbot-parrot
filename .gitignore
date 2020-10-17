@@ -2,3 +2,6 @@ node_modules
 .history
 .DS_Store
 .env
+.cache
+dist
+yarn-error.log

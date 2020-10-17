@@ -1,10 +1,16 @@
 const arg = require('arg');
 const chalk = require('chalk');
 const Geekbot = require('./Geekbot');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+// eslint-disable-next-line no-process-env
+const { GITHUB_TOKEN } = process.env;
 
 async function outputActivity(geekbot) {
-  const yesterday = await geekbot.getWhatDidYouDo('\n  ');
-  const today = await geekbot.getWhatWillYouDo();
+  const yesterday = await geekbot.getWhatDidYouDo('\n');
+  const today = await geekbot.getWhatWillYouDo('\n');
   console.log(`
 ${chalk.bold.white('What did you do yesterday?')}
   ${yesterday}
@@ -41,10 +47,10 @@ function main() {
     '--from': 'yesterday',
     ...args
   };
-  
+
   if (process.env.DEBUG) {
-    args["--user"] = 'idahogurl';
-    args["--organizations"] = 'healthline';
+    args['--user'] = 'idahogurl';
+    args['--organizations'] = 'healthline';
   }
 
   if (!args['--user'] || args['--help']) {

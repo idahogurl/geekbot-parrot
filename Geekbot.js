@@ -44,9 +44,12 @@ class Geekbot {
 
   async getActivities(filterDate) {
     const items = await this.githubActivity.filter(filterDate);
-    // Assigned, opened issue, don't duplicate PR & created branch if on same day
-    // Don't get push events (create branch) anymore. We know what is still in progress or re
-    const filterTypes = ['CreateEvent', 'PullRequestReviewCommentEvent'];
+    // assigned, opened issue, don't duplicate PR & created branch if on same day
+    const filterTypes = [
+      'PushEvent',
+      'CreateEvent',
+      'PullRequestReviewCommentEvent'
+    ];
     const filtered = items.filter(
       i => filterTypes.includes(i.type) || !i.payload
     );

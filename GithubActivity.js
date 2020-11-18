@@ -38,12 +38,9 @@ class GithubActivity {
   async filter(filterDate) {
     const dateString = filterDate.toDateString();
     const activities = await this.request(`users/${this.username}/events`);
-    // get from Jira instead
-
-    // const authoredIssues = await this.request(`search/issues`, {
-    //   q: `author:${this.username}`
-    // });
-    // get from Jira instead
+    const authoredIssues = await this.request(`search/issues`, {
+      q: `author:${this.username}`
+    });
     const assignedIssues = await this.request(`search/issues`, {
       q: `assignee:${this.username} not author:${this.username}`
     });

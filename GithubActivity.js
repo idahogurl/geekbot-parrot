@@ -1,12 +1,12 @@
 const dotenv = require('dotenv');
-const fetch = require('node-fetch');
-
+const request = require('request-promise');
 const API_URL = 'https://api.github.com';
+const dayjs = require('dayjs');
 
 dotenv.config();
 
 class GithubActivity {
-  constructor(username, organizations = []) {
+  constructor(username, organizations = [], jiraClient) {
     const githubToken = process.env.GITHUB_TOKEN;
     if (!githubToken) {
       throw new Error('You need to supply an GitHub token');
@@ -18,6 +18,7 @@ class GithubActivity {
     this.githubToken = githubToken;
     this.username = username;
     this.organizations = organizations;
+    this.jiraClient = jiraClient;
   }
 
   async request(path, params) {
@@ -27,36 +28,41 @@ class GithubActivity {
         url.searchParams.append(key, params[key])
       );
     url.searchParams.append('per_page', 100);
-    const response = await fetch(url, {
+    const response = await request(url, {
       headers: {
-        Authorization: `token ${this.githubToken}`
-      }
+        Authorization: `token ${this.githubToken}`,
+        ['User-Agent']: 'Geekbot Parrot'
+      },
+      json: true
     });
-    return response.json();
+    return response;
   }
 
   async filter(filterDate) {
-    const dateString = filterDate.toDateString();
-    const activities = await this.request(`users/${this.username}/events`);
-    const authoredIssues = await this.request(`search/issues`, {
-      q: `author:${this.username}`
+    const startDate = filterDate.startOf('D');
+    const filterType =
+      startDate.format('YYYY-MM-DD') ===
+      dayjs()
+        .subtract(1, 'day')
+        .startOf('D')
+        .format('YYYY-MM-DD')
+        ? 'today'
+        : 'tomorrow';
+    const activities = await this.request(`users/${this.username}/events`, {
+      json: true
     });
-    const assignedIssues = await this.request(`search/issues`, {
-      q: `assignee:${this.username} not author:${this.username}`
+
+    const issues =
+      filterType === 'today'
+        ? await this.jiraClient.getDidDo(startDate)
+        : await this.jiraClient.getWillDo(startDate);
+
+    const dateString = startDate.toISOString();
+    return activities.concat(issues).filter(activity => {
+      const converted = dayjs(activity.created_at).toISOString();
+      // console.log(converted, dateString);
+      return converted === dateString;
     });
-    const issues = (authoredIssues.items || []).concat(assignedIssues.items);
-    // title, user.login, number
-    return activities
-      .filter(
-        activity => new Date(activity.created_at).toDateString() === dateString
-      )
-      .concat(
-        issues.filter(
-          i =>
-            i.state === 'open' ||
-            new Date(i.closed_at).toDateString() === dateString
-        )
-      );
   }
 
   getRepoName(url) {

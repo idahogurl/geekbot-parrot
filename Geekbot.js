@@ -1,32 +1,48 @@
 const dotenv = require('dotenv');
 const chrono = require('chrono-node');
-
 const GithubActivity = require('./GithubActivity');
-const { getIssueTitle, getIssueNumber } = require('./jira');
+const JiraClient = require('./jira');
+const dayjs = require('dayjs');
 
 dotenv.config();
 
 class Geekbot {
   constructor(username, organizations = [], beforeDateText) {
     organizations = organizations.filter(orgName => !!orgName);
-
-    this.githubActivity = new GithubActivity(username, organizations);
-    this.beforeDate = chrono.parseDate(beforeDateText);
+    this.jiraClient = new JiraClient({
+      jiraToken: process.env.JIRA_TOKEN,
+      jiraAccount: process.env.JIRA_ACCOUNT,
+      jiraHost: process.env.JIRA_HOST,
+      jiraProtocol: process.env.JIRA_PROTOCOL
+    });
+    this.githubActivity = new GithubActivity(
+      username,
+      organizations,
+      this.jiraClient
+    );
+    this.beforeDate = dayjs(chrono.parseDate(beforeDateText));
   }
 
   async getWhatDidYouDo(separator) {
+    console.log('Did Do');
     if (separator) {
-      return this.outputActivities({ filterDate: this.beforeDate, separator });
+      return this.outputActivities({
+        filterDate: this.beforeDate,
+        separator
+      });
     }
     const activities = await this.getActivities(this.beforeDate);
     return activities.map(a => this.itemToText(a));
   }
 
   async getWhatWillYouDo(separator) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const nextDay = new Date(this.beforeDate.getTime() + oneDay);
+    console.log('Will Do');
+    const nextDay = this.beforeDate.add(1, 'day');
     if (separator) {
-      return this.outputActivities({ filterDate: nextDay, separator });
+      return this.outputActivities({
+        filterDate: nextDay,
+        separator
+      });
     }
     const activities = await this.getActivities(nextDay);
     return activities.map(a => this.itemToText(a));
@@ -51,32 +67,32 @@ class Geekbot {
       'PullRequestReviewCommentEvent'
     ];
     const filtered = items.filter(
-      i => filterTypes.includes(i.type) || !i.payload
+      i => filterTypes.includes(i.type) || i.isIssue
     );
     const processItems = await Promise.all(
       filtered.map(i => this.processItem(i))
     );
-    const processed = processItems.filter(i => i);
-    return processed.filter(
-      (v, i, a) =>
-        a.findIndex(
-          t =>
-            !t.issue ||
-            !v.issue ||
-            (t.issue &&
-              v.issue &&
-              t.action === v.action &&
-              t.repoName === v.repoName &&
-              t.issue.number === v.issue.number)
-        ) === i
-    );
+    return processItems.filter(i => i);
+    // return processed.filter(
+    //   (v, i, a) =>
+    //     a.findIndex(
+    //       t =>
+    //         !t.issue ||
+    //         !v.issue ||
+    //         (t.issue &&
+    //           v.issue &&
+    //           t.action === v.action &&
+    //           t.repoName === v.repoName &&
+    //           t.issue.number === v.issue.number)
+    //     ) === i
+    // );
   }
 
   async processItem(item) {
-    if (item.payload) {
-      return this.processActivity(item);
+    if (item.isIssue) {
+      return this.processIssue(item);
     }
-    return this.processIssue(item);
+    return this.processActivity(item);
   }
 
   async processActivity(activity) {
@@ -94,12 +110,11 @@ class Geekbot {
       case 'PushEvent':
       case 'CreateEvent': {
         if (refType === 'branch') {
-          transformed.action = 'in progress';
+          transformed.action = 'Review';
           transformed.repoName = '';
 
-          const number = getIssueNumber(refName);
-          const issue = await getIssueTitle(number);
-          const title = issue.fields.summary;
+          const number = this.jiraClient.getIssueNumber(refName);
+          const title = await this.jiraClient.getIssueTitle(number);
           transformed.issue = { number, title, isIssue: true };
           return transformed;
         }
@@ -125,21 +140,15 @@ class Geekbot {
 
   processIssue(issue) {
     const {
-      pull_request: pullRequest,
-      state,
-      title,
-      number,
-      repository_url: repoUrl
+      key,
+      summary,
+      status: { name: statusName }
     } = issue;
-    const repoName = this.githubActivity.getRepoName(repoUrl);
-    if (!repoName) {
-      return;
-    }
 
     return {
-      action: state,
-      repoName,
-      issue: { number, title, isIssue: !pullRequest }
+      action: statusName,
+      repoName: '',
+      issue: { number: key, title: summary, isIssue: true }
     };
   }
 
@@ -151,15 +160,13 @@ class Geekbot {
       issue: { number, title, isIssue }
     } = issue;
 
-    return `*[${action}]* ${
-      isIssue ? '' : 'PR '
-    }${repoName}#${number} - ${title}`;
+    return `*[${action}]* ${isIssue ? '' : 'PR '}${
+      repoName === '' ? repoName : repoName + '#'
+    }${number} - ${title}`;
   }
 
   itemToText(item) {
-    console.log('item', item);
-
-    if (item.issue) {
+    if (item.issue.isIssue) {
       return this.issueToText(item);
     }
     return this.activityToText(item);
